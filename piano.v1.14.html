@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Piano</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; background: #1a1a2e; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; }
+        h1 { color: #eee; margin-bottom: 30px; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+        .piano { display: flex; gap: 4px; padding: 20px; background: #16213e; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .key { position: relative; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 10px; font-size: 14px; font-weight: bold; cursor: pointer; user-select: none; transition: all 0.1s ease; }
+        .key.white { width: 60px; height: 200px; background: linear-gradient(to bottom, #fff 0%, #eee 100%); border: 1px solid #ccc; border-radius: 0 0 8px 8px; box-shadow: inset -2px -2px 4px rgba(0,0,0,0.1), 3px 0 5px rgba(0,0,0,0.2); }
+        .key.white.active { background: linear-gradient(to bottom, #e8f4fd 0%, #b8daff 100%); transform: translateY(2px); box-shadow: inset -2px -2px 4px rgba(0,0,0,0.1), 3px 0 5px rgba(0,0,0,0.2); }
+        .key.black { width: 40px; height: 120px; background: linear-gradient(to bottom, #333 0%, #000 100%); border-radius: 0 0 6px 6px; box-shadow: inset -2px -2px 4px rgba(0,0,0,0.3), 3px 0 5px rgba(0,0,0,0.3); position: absolute; z-index: 10; }
+        .key.black.active { background: linear-gradient(to bottom, #444 0%, #222 100%); transform: translateY(2px); }
+        .key span { pointer-events: none; }
+        .controls { margin-top: 30px; color: #aaa; font-size: 14px; text-align: center; }
+        .status { color: #4caf50; margin-bottom: 10px; font-weight: bold; padding: 8px 16px; background: rgba(76,175,80,0.2); border-radius: 4px; display: inline-block; }
+        .start-btn { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 20px 40px; font-size: 18px; background: #e94560; color: white; border: none; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 15px rgba(233,69,96,0.4); transition: all 0.3s ease; z-index: 100; }
+        .start-btn:hover { background: #ff6b6b; transform: translate(-50%, -50%) scale(1.05); }
+    </style>
+</head>
+<body>
+    <h1>Simple Piano v1.14</h1>
+    <div class="piano" id="piano"></div>
+    <div class="controls">
+        <div class="status" id="status">Click the button below to start audio engine...</div>
+        <p>Keys: A S D F G H J K L ;</p>
+    </div>
+    <button style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);padding:20px 40px;font-size:18px;background:#e94560;color:white;border:none;border-radius:8px;cursor:pointer;box-shadow:0 4px 15px rgba(233,69,96,0.4);transition:all 0.3s ease;z-index:100;" id="startBtn">▶️ Click to Start Audio</button>
+    <script>
+        var notes = [
+            { note: "C4", freq: 261.63, type: "white", key: "a" },
+            { note: "D4", freq: 293.66, type: "white", key: "s" },
+            { note: "E4", freq: 329.63, type: "white", key: "d" },
+            { note: "F4", freq: 349.23, type: "white", key: "f" },
+            { note: "G4", freq: 392.00, type: "white", key: "g" },
+            { note: "A4", freq: 440.00, type: "white", key: "h" },
+            { note: "B4", freq: 493.88, type: "white", key: "j" },
+            { note: "C5", freq: 523.25, type: "white", key: "k" },
+            { note: "D5", freq: 587.33, type: "white", key: "l" },
+            { note: "E5", freq: 659.25, type: "white", key: ";" }
+        ];
+
+        var audioCtx = null;
+        var isAudioReady = false;
+
+        function initAudio() {
+            if (isAudioReady) return;
+
+            var AudioContext = window.AudioContext || window.webkitAudioContext;
+            try {
+                audioCtx = new AudioContext();
+                console.log("AudioContext created successfully");
+                isAudioReady = true;
+                document.getElementById("status").textContent = "Audio engine ready!";
+                document.getElementById("startBtn").style.display = "none";
+                document.getElementById("status").style.color = "#4caf50";
+
+                setTimeout(function() {
+                    playNote(261.63, 0.5);
+                }, 100);
+
+            } catch (e) {
+                console.error("Failed to create AudioContext:", e);
+                document.getElementById("status").textContent = "Error: " + e.message;
+                document.getElementById("startBtn").style.display = "none";
+                document.getElementById("status").style.color = "#f44336";
+            }
+        }
+
+        function playNote(freq, duration) {
+            if (!isAudioReady || !audioCtx) return;
+
+            var oscillator = audioCtx.createOscillator();
+            var gainNode = audioCtx.createGain();
+
+            oscillator.type = "sawtooth";
+            oscillator.frequency.setValueAtTime(freq, audioCtx.currentTime);
+
+            gainNode.gain.setValueAtTime(0.8, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + duration);
+
+            console.log("Playing note:", freq, "Hz for", duration, "s");
+        }
+
+        function createPiano() {
+            var piano = document.getElementById("piano");
+            notes.forEach(function(note, index) {
+                var keyEl = document.createElement("div");
+                keyEl.className = "key " + note.type;
+                keyEl.id = "key-" + note.note;
+
+                if (note.type === "white") {
+                    keyEl.style.position = "relative";
+                    keyEl.innerHTML = "<span>" + note.key.toUpperCase() + "</span>";
+                } else {
+                    var offset = index * 64 + 20;
+                    keyEl.style.left = offset + "px";
+                    keyEl.innerHTML = "<span>" + note.note + "</span>";
+                }
+
+                piano.appendChild(keyEl);
+            });
+        }
+
+        function activateKey(note) {
+            var keyEl = document.getElementById("key-" + note);
+            if (keyEl) {
+                keyEl.classList.add("active");
+                setTimeout(function() { keyEl.classList.remove("active"); }, 150);
+            }
+        }
+
+        // Create piano first, then attach listeners
+        createPiano();
+
+        // Attach mousedown handler directly by ID - more reliable than dataset selector
+        notes.forEach(function(note) {
+            var keyEl = document.getElementById("key-" + note.note);
+            if (keyEl) {
+                console.log("Attaching listener to " + note.note);
+                keyEl.addEventListener("mousedown", function() {
+                    playNote(note.freq, 1.5);
+                    activateKey(note.note);
+                });
+            } else {
+                console.error("Could not find element for " + note.note);
+            }
+        });
+
+        notes.forEach(function(note) {
+            document.addEventListener("keydown", function(e) {
+                var pressedKey = e.key.toLowerCase();
+                if (pressedKey === note.key && !e.repeat) {
+                    playNote(note.freq, 1.5);
+                    activateKey(note.note);
+                }
+            });
+        });
+
+        document.getElementById("startBtn").addEventListener("click", function(e) {
+            initAudio();
+        });
+    </script>
+</body>
+</html>
